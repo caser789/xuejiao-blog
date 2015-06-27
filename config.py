@@ -6,7 +6,7 @@ class Config:
     SECRETE_KEY = os.environ.get('XUEJIAO-BLOG-SECRET-KEY')
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
     MAIL_SERVER = 'smtp.163.com'
-    MAIL_PORT = 
+    MAIL_PORT = 465
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.environ.get('EMAIL_163_USERNAME')
     MAIL_PASSWORD = os.environ.get('EMAIL_163_PASSWORD')
