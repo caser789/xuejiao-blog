@@ -1,0 +1,13 @@
+Dear {{ user.username }},
+
+Welcome to XueJiao's Blog,
+
+To confirm your account please click on the following link:
+
+{{ url_for('auth.confirm', token=token, _external=True) }}
+
+Sincerely,
+
+Xue Jiao
+
+Note: replies to this email are not monitored.
