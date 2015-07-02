@@ -7,6 +7,11 @@ from .forms import EditProfileForm, EditProfileAdminForm, PostForm
 from .. import db
 from ..decorators import admin_required
 
+@main.route('/post/<int:id>')
+def post(id):
+    post = Post.query.get_or_404(id)
+    return render_template('post.html', posts=[post])
+
 @main.route('/', methods=['GET', 'POST'])
 def index():
     form = PostForm()
