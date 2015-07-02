@@ -1,6 +1,6 @@
 import unittest
 from app import create_app, db
-from app.models import User, Role, Permission, AnonymousUser
+from app.models import User, Role, Permission, AnonymousUser, Follow
 import time
 from datetime import datetime
 
@@ -147,3 +147,55 @@ class UserModelTestCase(unittest.TestCase):
 	self.assertTrue('d=retro' in gravatar_retro)
 	self.assertTrue('https://secure.gravatar.com/avatar/' + 
 		'd4c74594d841139328695756648b6bd6' in gravatar_ssl)
+
+    def test_follows(self):
+	# create u1
+	u1 = User(email='john@example.com', password='cat')
+	# create u2
+	u2 = User(email='susan@example.org', password='dog')
+	# add u1 and u2 into db
+	db.session.add(u1)
+	db.session.add(u2)
+	db.session.commit()
+	# make sure that u1 is not followring u2
+	self.assertFalse(u1.is_following(u2))
+	# asure u1 is not followd by u2
+	self.assertFalse(u1.is_followed_by(u2))
+	# record time before construct relationship
+	timestamp_before = datetime.utcnow()
+	# relate u1 with u2
+	u1.follow(u2)
+	# add into db
+	db.session.add(u1)
+	db.session.commit()
+	# time after relate
+	timestamp_after = datetime.utcnow()
+	# asure u1 -> u2
+	self.assertTrue(u1.is_following(u2))
+	# asure not u1 <- u2
+	self.assertFalse(u1.is_followed_by(u2))
+	# assure u2 <- u1
+	self.assertTrue(u2.is_followed_by(u1))
+	# assure u1's followed is 1
+	self.assertTrue(u1.followed.count() == 1)
+	# assure u2's followers is 1
+	self.assertTrue(u2.followers.count() == 1)
+	# u1.followd is a bunch of users, f is one query	
+	f = u1.followed.all()[-1]
+	self.assertTrue(f.followed == u2)
+	self.assertTrue(timestamp_before <= f.timestamp <= timestamp_after)
+	f = u2.followers.all()[-1]
+	self.assertTrue(f.follower == u1)
+	u1.unfollow(u2)
+	db.session.add(u1)
+	db.session.commit()
+	self.assertTrue(u1.followed.count() == 0)
+	self.assertTrue(u2.followers.count() == 0)
+	self.assertTrue(Follow.query.count() == 0)
+	u2.follow(u1)
+	db.session.add(u1)
+	db.session.add(u2)
+	db.session.commit()
+	db.session.delete(u2)
+	db.session.commit()
+	self.assertTrue(Follow.query.count() == 0)
