@@ -1,4 +1,5 @@
-from flask import render_template, abort, redirect, url_for, flash
+from flask import render_template, abort, redirect, url_for, flash, \
+        current_app, request
 from . import main
 from ..models import User, Role, Permission, Post
 from flask.ext.login import login_required, current_user
@@ -10,21 +11,31 @@ from ..decorators import admin_required
 def index():
     form = PostForm()
     if current_user.can(Permission.WRITE_ARTICLES) and \
-	    form.validate_on_submit():
-	post = Post(body=form.body.data,
-		    author=current_user._get_current_object())
-	db.session.add(post)
-	return redirect(url_for('.index'))
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
-    return render_template('index.html', form=form, posts=posts)
+            form.validate_on_submit():
+        post = Post(body=form.body.data,
+                    author=current_user._get_current_object())
+        db.session.add(post)
+        return redirect(url_for('.index'))
+    page = request.args.get('page', 1, type=int)
+    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+            page, per_page=current_app.config['BLOG_POSTS_PER_PAGE'],
+            error_out=False)
+    posts = pagination.items
+    return render_template('index.html', form=form, posts=posts,
+            pagination=pagination)
 
 
 
 @main.route('/user/<username>')
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
-    posts = user.posts.order_by(Post.timestamp.desc()).all()
-    return render_template('user.html', user=user, posts=posts)
+    page = request.args.get('page', 1, type=int)
+    pagination = user.posts.order_by(Post.timestamp.desc()).paginate(
+            page, per_page=current_app.config['BLOG_POSTS_PER_PAGE'],
+            error_out=False)
+    posts = pagination.items
+    return render_template('user.html', user=user, posts=posts,
+            pagination=pagination)
 
 @main.route('/edit-profile', methods=['GET', 'POST'])
 @login_required
