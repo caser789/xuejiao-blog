@@ -1,8 +1,9 @@
 import unittest
-from app import create_app, db
-from app.models import User, Role, Permission, AnonymousUser, Follow
 import time
 from datetime import datetime
+from app import create_app, db
+from app.models import User, AnonymousUser, Role, Permission, Follow
+
 
 class UserModelTestCase(unittest.TestCase):
     def setUp(self):
@@ -10,28 +11,31 @@ class UserModelTestCase(unittest.TestCase):
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
-	Role.insert_roles()
-
+        Role.insert_roles()
 
     def tearDown(self):
         db.session.remove()
         db.drop_all()
         self.app_context.pop()
+
     def test_password_setter(self):
         u = User(password='cat')
         self.assertTrue(u.password_hash is not None)
+
     def test_no_password_getter(self):
         u = User(password='cat')
         with self.assertRaises(AttributeError):
             u.password
+
     def test_password_verification(self):
         u = User(password='cat')
         self.assertTrue(u.verify_password('cat'))
         self.assertFalse(u.verify_password('dog'))
-    def test_password_salts_are_randome(self):
-        u1 = User(password='cat')
+
+    def test_password_salts_are_random(self):
+        u = User(password='cat')
         u2 = User(password='cat')
-        self.assertTrue(u1.password_hash != u2.password_hash)
+        self.assertTrue(u.password_hash != u2.password_hash)
 
     def test_valid_confirmation_token(self):
         u = User(password='cat')
@@ -102,17 +106,17 @@ class UserModelTestCase(unittest.TestCase):
         token = u2.generate_email_change_token('john@example.com')
         self.assertFalse(u2.change_email(token))
         self.assertTrue(u2.email == 'susan@example.org')
-    
+
     def test_roles_and_permissions(self):
-	u = User(email='john@example.com', password='cat')
-	self.assertTrue(u.can(Permission.WRITE_ARTICLES))
-	self.assertFalse(u.can(Permission.MODERATE_COMMENTS))
+        u = User(email='john@example.com', password='cat')
+        self.assertTrue(u.can(Permission.WRITE_ARTICLES))
+        self.assertFalse(u.can(Permission.MODERATE_COMMENTS))
 
     def test_anonymous_user(self):
-	u = AnonymousUser()
-	self.assertFalse(u.can(Permission.FOLLOW))
+        u = AnonymousUser()
+        self.assertFalse(u.can(Permission.FOLLOW))
 
-    def test_timestamp(self):
+    def test_timestamps(self):
         u = User(password='cat')
         db.session.add(u)
         db.session.commit()
@@ -131,71 +135,55 @@ class UserModelTestCase(unittest.TestCase):
         self.assertTrue(u.last_seen > last_seen_before)
 
     def test_gravatar(self):
-	u = User(email='john@example.com', password='cat')
-	with self.app.test_request_context('/'):
-	    gravatar = u.gravatar()
-	    gravatar_256 = u.gravatar(size=256)
-	    gravatar_pg = u.gravatar(rating='pg')
-	    gravatar_retro = u.gravatar(default='retro')
-	with self.app.test_request_context('/',
-		base_url='https://example.com'):
-	    gravatar_ssl = u.gravatar()
-	self.assertTrue('http://www.gravatar.com/avatar/' + 
-		'd4c74594d841139328695756648b6bd6' in gravatar)
-	self.assertTrue('s=256' in gravatar_256)
-	self.assertTrue('r=pg' in gravatar_pg)
-	self.assertTrue('d=retro' in gravatar_retro)
-	self.assertTrue('https://secure.gravatar.com/avatar/' + 
-		'd4c74594d841139328695756648b6bd6' in gravatar_ssl)
+        u = User(email='john@example.com', password='cat')
+        with self.app.test_request_context('/'):
+            gravatar = u.gravatar()
+            gravatar_256 = u.gravatar(size=256)
+            gravatar_pg = u.gravatar(rating='pg')
+            gravatar_retro = u.gravatar(default='retro')
+        with self.app.test_request_context('/', base_url='https://example.com'):
+            gravatar_ssl = u.gravatar()
+        self.assertTrue('http://www.gravatar.com/avatar/' +
+                        'd4c74594d841139328695756648b6bd6'in gravatar)
+        self.assertTrue('s=256' in gravatar_256)
+        self.assertTrue('r=pg' in gravatar_pg)
+        self.assertTrue('d=retro' in gravatar_retro)
+        self.assertTrue('https://secure.gravatar.com/avatar/' +
+                        'd4c74594d841139328695756648b6bd6' in gravatar_ssl)
 
     def test_follows(self):
-	# create u1
-	u1 = User(email='john@example.com', password='cat')
-	# create u2
-	u2 = User(email='susan@example.org', password='dog')
-	# add u1 and u2 into db
-	db.session.add(u1)
-	db.session.add(u2)
-	db.session.commit()
-	# make sure that u1 is not followring u2
-	self.assertFalse(u1.is_following(u2))
-	# asure u1 is not followd by u2
-	self.assertFalse(u1.is_followed_by(u2))
-	# record time before construct relationship
-	timestamp_before = datetime.utcnow()
-	# relate u1 with u2
-	u1.follow(u2)
-	# add into db
-	db.session.add(u1)
-	db.session.commit()
-	# time after relate
-	timestamp_after = datetime.utcnow()
-	# asure u1 -> u2
-	self.assertTrue(u1.is_following(u2))
-	# asure not u1 <- u2
-	self.assertFalse(u1.is_followed_by(u2))
-	# assure u2 <- u1
-	self.assertTrue(u2.is_followed_by(u1))
-	# assure u1's followed is 1
-	self.assertTrue(u1.followed.count() == 1)
-	# assure u2's followers is 1
-	self.assertTrue(u2.followers.count() == 1)
-	# u1.followd is a bunch of users, f is one query	
-	f = u1.followed.all()[-1]
-	self.assertTrue(f.followed == u2)
-	self.assertTrue(timestamp_before <= f.timestamp <= timestamp_after)
-	f = u2.followers.all()[-1]
-	self.assertTrue(f.follower == u1)
-	u1.unfollow(u2)
-	db.session.add(u1)
-	db.session.commit()
-	self.assertTrue(u1.followed.count() == 0)
-	self.assertTrue(u2.followers.count() == 0)
-	self.assertTrue(Follow.query.count() == 0)
-	u2.follow(u1)
-	db.session.add(u1)
-	db.session.add(u2)
-	db.session.commit()
-	db.session.delete(u2)
-	db.session.commit()
-	self.assertTrue(Follow.query.count() == 0)
+        u1 = User(email='john@example.com', password='cat')
+        u2 = User(email='susan@example.org', password='dog')
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.commit()
+        self.assertFalse(u1.is_following(u2))
+        self.assertFalse(u1.is_followed_by(u2))
+        timestamp_before = datetime.utcnow()
+        u1.follow(u2)
+        db.session.add(u1)
+        db.session.commit()
+        timestamp_after = datetime.utcnow()
+        self.assertTrue(u1.is_following(u2))
+        self.assertFalse(u1.is_followed_by(u2))
+        self.assertTrue(u2.is_followed_by(u1))
+        self.assertTrue(u1.followed.count() == 1)
+        self.assertTrue(u2.followers.count() == 1)
+        f = u1.followed.all()[-1]
+        self.assertTrue(f.followed == u2)
+        self.assertTrue(timestamp_before <= f.timestamp <= timestamp_after)
+        f = u2.followers.all()[-1]
+        self.assertTrue(f.follower == u1)
+        u1.unfollow(u2)
+        db.session.add(u1)
+        db.session.commit()
+        self.assertTrue(u1.followed.count() == 0)
+        self.assertTrue(u2.followers.count() == 0)
+        self.assertTrue(Follow.query.count() == 0)
+        u2.follow(u1)
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.commit()
+        db.session.delete(u2)
+        db.session.commit()
+        self.assertTrue(Follow.query.count() == 0)

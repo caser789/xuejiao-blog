@@ -14,6 +14,7 @@ class Config:
     BLOG_MAIL_SENDER = 'Xue Jiao <m13488699851@163.com>'
     BLOG_ADMIN = os.environ.get('XUEJIAO-BLOG-ADMIN') 
     BLOG_POSTS_PER_PAGE = 20
+    BLOG_FOLLOWERS_PER_PAGE = 50
 
     @staticmethod
     def init_app(app):

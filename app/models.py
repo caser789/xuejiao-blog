@@ -21,7 +21,7 @@ class Follow(db.Model):
 			    primary_key=True)
     followed_id = db.Column(db.Integer, db.ForeignKey('users.id'),
 			    primary_key=True)
-    timestamp = db.Column(db.DateTime(), default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Post(db.Model):
     __tablename__ = 'posts'
@@ -113,22 +113,22 @@ class User(UserMixin, db.Model):
 				cascade='all, delete-orphan')
 
     def follow(self, user):
-	if not self.is_following(user):
-	    f = Follow(follower=user)
-	    self.followed.append(f)
-    
+	    if not self.is_following(user):
+	        f = Follow(follower=self, followed=user)
+            db.session.add(f) 
+
     def unfollow(self, user):
-	f = self.followed.filter_by(followed_id=user.id).first()
-	if f:
-	    self.followed.remove(f)
-	
+    	f = self.followed.filter_by(followed_id=user.id).first()
+    	if f:
+            db.session.delete(f)	
+
     def is_following(self, user):
-	return self.followed.filter_by(
-		followed_id=user.id).first() is not None
+    	return self.followed.filter_by(
+	    	followed_id=user.id).first() is not None
 
     def is_followed_by(self, user):
-	return self.followers.filter_by(
-		follower_id=user.id).first() is not None
+    	return self.followers.filter_by(
+		    follower_id=user.id).first() is not None
 
     def __init__(self, **kw):
 	super(User, self).__init__(**kw)
