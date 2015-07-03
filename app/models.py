@@ -129,16 +129,27 @@ class User(UserMixin, db.Model):
     def is_followed_by(self, user):
     	return self.followers.filter_by(
 		    follower_id=user.id).first() is not None
+    #by hand iterate over the whole user to make sure everyone follows himself/herself
+    @staticmethod
+    def add_self_follows():
+        for user in User.query.all():
+            if not user.is_following(user):
+                user.follow(user)
+                db.session.add(user)
+                db.session.commit()
 
+    
     def __init__(self, **kw):
-	super(User, self).__init__(**kw)
-	if self.role == None:
-	    if self.email == current_app.config['BLOG_ADMIN']:
-		self.role = Role.query.filter_by(name='Administrator').first()
-	    else:
-		self.role = Role.query.filter_by(default=True).first()
-	if self.email is not None and self.avatar_hash is None:
-	    self.avatar_hash = hashlib.md5(self.email.encode('utf-8')).hexdigest()
+        super(User, self).__init__(**kw)
+        if self.role == None:
+            if self.email == current_app.config['BLOG_ADMIN']:
+                self.role = Role.query.filter_by(name='Administrator').first()
+            else:
+                self.role = Role.query.filter_by(default=True).first()
+        if self.email is not None and self.avatar_hash is None:
+            self.avatar_hash =hashlib.md5(self.email.encode('utf-8')).hexdigest()
+        # self followed at the first place
+        self.followed.append(Follow(followed=self))
 
     def can(self, permissions):
 	return self.role is not None and \
