@@ -160,6 +160,10 @@ class User(UserMixin, db.Model):
 	return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
 		url=url, hash=hash, size=size, default=default, rating=rating)
 
+    @property
+    def followed_posts(self):
+        return Post.query.join(Follow, Follow.followed_id == Post.author_id)\
+                .filter(Follow.follower_id == self.id)
 
     @property
     def password(self):
