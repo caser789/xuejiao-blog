@@ -16,6 +16,8 @@ class Config:
     BLOG_POSTS_PER_PAGE = 20
     BLOG_FOLLOWERS_PER_PAGE = 50
     BLOG_COMMENTS_PER_PAGE = 30
+    SQLALCHEMY_RECORD_QUERIES = True
+    BLOG_SLOW_DB_QUERY_TIME = 0.5
 
     @staticmethod
     def init_app(app):
@@ -36,6 +38,29 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     SQLALCHMEY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(basedir, 'data.sqlite')
+
+    @classmethod
+    def init_app(cls, app):
+        Config.init_app(app)
+
+        # email errors to the admin
+        import logging
+        from logging.handlers import SMTPHandler
+        credentials = None
+        secure = None
+        if getattr(cls, 'EMAIL_163_USERNAME', None) is not None:
+            credentials = (cls.EMAIL_163_USERNAME, cls.EMAIL_163_PASSWORD)
+            if getattr(cls, 'MAIL_USE_TLS', None):
+                secure = ()
+        mail_handler = SMTPHandler(
+            mailhost=(cls.MAIL_SERVER, cls.MAIL_POST),
+            fromaddr=cls.BLOG_MAIL_SENDER,
+            toaddrs=[cls.BLOG_ADMIN],
+            subject=cls.BLOG_MAIL_SUBJECT_PREFIX + ' Application Error',
+            credentials=credentials,
+            secure=secure)
+        mail_handler.setlevel(logging.ERROR)
+        app.logger.addHandler(mail_handler)
 
 config = {
     'development': DevelopmentConfig,
