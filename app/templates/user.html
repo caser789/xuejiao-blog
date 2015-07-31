@@ -38,7 +38,7 @@ XueJiao's Blog - {{ user.username }}
                 class="btn btn-default">Unfollow</a>
             {% endif %}
         {% endif %}
-        # the number of the followers should minus one to minus your self!
+        
         <a href="{{url_for('.followers', username=user.username) }}">Followers:
             <span class="badge">{{ user.followers.count() - 1 }}</span></a>
         <a href="{{url_for('.followed_by', username=user.username) }}">Following:
