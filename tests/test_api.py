@@ -150,7 +150,7 @@ class APITestCase(unittest.TestCase):
                 headers=api.get_api_headers('john@example.com', 'cat'))
         self.assertTrue(resposne.status_code == 200)
         json_response = json.loads(resposne.data.decode('utf-8'))
-        self.asertIsNotNone(json_response.get('posts'))
+        self.assertIsNotNone(json_response.get('posts'))
         self.assertTrue(json_resposne.get('count', 0) == 1)
         self.assertTrue(json_response['posts'][0] == json_post)
 
